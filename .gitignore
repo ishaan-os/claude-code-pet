@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.log
+overlay.pid
+state.json
+state.lock
+position.json
+previews/
+venv/
+.venv/

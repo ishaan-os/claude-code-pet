@@ -1,0 +1,21 @@
+{
+  "spritesheet": "~/.codex/pets/nola/spritesheet.webp",
+  "cellWidth": 192,
+  "cellHeight": 208,
+  "cols": 8,
+  "rows": 9,
+  "fps": 6.0,
+  "scale": 0.42,
+  "anchor": "bottom-right",
+  "margin": 24,
+  "themeAccent": "#1F8FB5",
+  "doneAccent": "#34C759",
+  "states": {
+    "idle":     {"row": 0, "frames": 6},
+    "thinking": {"row": 6, "frames": 6},
+    "working":  {"row": 4, "frames": 5},
+    "alert":    {"row": 3, "frames": 4},
+    "done":     {"row": 3, "frames": 4},
+    "sleeping": {"row": 5, "frames": 8}
+  }
+}
