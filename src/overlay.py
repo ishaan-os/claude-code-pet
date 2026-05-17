@@ -49,8 +49,8 @@ LOCK_PATH = PET_HOME / "state.lock"
 ACTIVE_WINDOWS = {
     "thinking": 600,
     "working": 600,
-    "alert": 600,
-    "done": 45,  # show "completed" green badge for ~45s after Stop, then fade
+    "alert": 30,  # wave for 30s after Notification, then derive back to idle/active
+    "done": 30,   # wave for 30s after Stop, then derive back to idle/active
 }
 SPRITE_STATE_PRIORITY = ("alert", "working", "thinking", "done")
 ATTENTION_STATES = {"alert", "done"}
@@ -85,15 +85,17 @@ STILL_POSES = [
     None,
 ]
 
-# Simple per-state animation: just loop the row at the global fps. If a state
-# feels too fast, bump its div (tick divisor) here. No holds — if a row's
-# frames don't cycle cleanly, change rows.
+# Per-state animation: loop the row at the global fps. Bump `div` to slow
+# a row down. Set `holdFrames` to hold on the first frame (a still rest
+# pose) for N global ticks after each animation cycle — useful for waves
+# that would otherwise look frenetic if looped without pause. With fps=6,
+# `frames=4` + `holdFrames=26` = one 4-frame wave every 30 ticks ≈ 5s.
 STATE_ANIMATION = {
     "idle":     {"row": 0, "frames": 6, "div": 2},
     "thinking": {"row": 6, "frames": 6, "div": 1},
     "working":  {"row": 4, "frames": 5, "div": 1},
-    "alert":    {"row": 3, "frames": 4, "div": 1},
-    "done":     {"row": 3, "frames": 4, "div": 1},
+    "alert":    {"row": 3, "frames": 4, "div": 1, "holdFrames": 26},
+    "done":     {"row": 3, "frames": 4, "div": 1, "holdFrames": 26},
     "sleeping": {"row": 5, "frames": 8, "div": 2},
 }
 
@@ -492,7 +494,10 @@ def run_overlay() -> None:
                 anim = STATE_ANIMATION.get(self._state, STATE_ANIMATION["idle"])
                 eff_idx = self._frame_idx // max(1, int(anim["div"]))
                 row = max(0, min(int(anim["row"]), self._cfg["rows"] - 1))
-                col = eff_idx % max(1, int(anim["frames"]))
+                frames = max(1, int(anim["frames"]))
+                hold = max(0, int(anim.get("holdFrames", 0)))
+                cycle = eff_idx % (frames + hold)
+                col = cycle if cycle < frames else 0
             sheet_h = self._cfg["rows"] * self._cfg["cellHeight"]
             src = NSRect(
                 (col * self._cfg["cellWidth"], sheet_h - (row + 1) * self._cfg["cellHeight"]),
