@@ -1,34 +1,45 @@
 # claude-code-pet
 
-> A floating, animated, multi-session-aware pet overlay for [Claude Code](https://docs.claude.com/en/docs/claude-code) on macOS. Bring your own Codex-format spritesheet.
+> A floating, animated, multi-session-aware pet overlay for [Claude Code](https://docs.claude.com/en/docs/claude-code) on macOS. Bring your own Codex-format spritesheet. Invoked as `/pet:pet`.
 
-`claude-code-pet` puts a tiny animated companion in the corner of your screen who reacts to what Claude Code is doing — thinking, working, waiting on you, or asleep. When you have multiple Claude Code sessions running at once, each gets its own speech bubble showing the latest assistant narration and the real session name.
+## Why
 
-It's a native macOS overlay (PyObjC + AppKit) — borderless, transparent, always-on-top, and joins every Space including fullscreen apps.
+I love Claude Code's new agent activity view — but I missed my Codex pet sitting in the corner reacting to what was happening. The Codex pet is rendered by Codex Desktop, and Claude Code is a CLI with no overlay surface. So I built this: a real macOS NSWindow overlay that hooks into Claude Code's lifecycle events, reads the same Codex spritesheet format (`hatch-pet`), and adds a few things I wanted that Codex's pet doesn't do.
 
-> **Status:** v0.1 — opinionated, macOS-only, "works on my machine but probably yours too." Open an issue if it doesn't.
+## What makes it different
+
+- **Multi-session aware.** One speech bubble per active Claude Code session, each chip-stamped with the session's *real* name (resolved authoritatively from `~/.claude/sessions/<pid>.json`) and showing the latest assistant narration extracted from the JSONL transcript — not the raw tool command, not your prompt. Works across any number of concurrent sessions on any cwd.
+- **Theme + typography match.** SF Mono body / SF Pro Rounded chip, system HUD blur, teal theme-accent badge while sessions are working, green only when alert/done. Feels like a native macOS widget, not an overlay bolted on.
+- **Dismissible bubbles.** Right-click any session bubble to dismiss it; it returns on the next state change for that session.
+- **Click to control the pet.** Left-click cycles animated states (sleeping → idle → thinking → done → working → alert → resume). Right-click cycles frozen poses (sit, wave, sleep, look). The pet auto-wakes from any manual override when a new alert fires or when your first session activates.
+- **Drag-direction-aware run.** Grab and drag the pet — she runs left or right matching the drag direction (rows 1/2). Hover the pet → trot (row 7).
+- **Cross-Space, always on top.** Joins every Space including fullscreen apps. No Dock icon. No Accessibility prompts. No screen-recording permission.
+- **Terminal-agnostic.** The overlay is a separate macOS process driven by Claude Code's hooks — not anything terminal-specific. Works in iTerm, Terminal.app, Ghostty, Warp, Alacritty, Kitty — anything that runs Claude Code.
 
 ## Requirements
 
 - **macOS 14.0+** (Sonoma or newer — needed for native WebP via ImageIO)
-- **Python 3** on the system path (`/usr/bin/python3` works on every modern Mac)
+- **Python 3** on the system path (`/usr/bin/python3` ships with every modern Mac)
 - **A Codex-format pet spritesheet** — see [Getting a pet](#getting-a-pet) below
 
-That's it. No Homebrew packages, no Xcode, no Accessibility permissions. The plugin creates an isolated venv on first run and installs `pyobjc-core` + `pyobjc-framework-Cocoa` into it.
+No Homebrew packages, no Xcode, no Accessibility/Screen-Recording prompts. The plugin creates an isolated venv on first run and installs `pyobjc-core` + `pyobjc-framework-Cocoa` into it.
 
 ## Install
 
 ```bash
 # In any Claude Code session:
 /plugin marketplace add ishaan-os/claude-code-pet
-/plugin install claude-code-pet@claude-code-pet
+/plugin install pet@claude-code-pet
+/pet:pet start
 ```
 
-That's it. The plugin registers its own hooks — you do **not** need to edit `~/.claude/settings.json`.
+That's it. The plugin registers its own lifecycle hooks — you do **not** need to edit `~/.claude/settings.json`. First `/pet:pet start` bootstraps the venv, copies a default config, auto-detects your pet from `~/.codex/pets/`, and launches.
+
+> **Why `/pet:pet`?** Claude Code requires plugin commands to be namespaced as `/<plugin>:<skill>` to avoid collisions. The plugin name is `pet` (short prefix) and the skill is also `pet`. The repo is published as `claude-code-pet` for discoverability.
 
 ## Getting a pet
 
-This plugin **does not ship a pet sprite**. You bring your own. The expected format is the one produced by [OpenAI's Codex `hatch-pet` skill](https://github.com/openai/skills/tree/main/skills/.curated/hatch-pet): an 8×9 atlas of 192×208 pixel cells, saved as `spritesheet.webp` alongside a `pet.json` metadata file.
+This plugin **does not ship a sprite asset**. You bring your own. The expected format is an 8×9 atlas of 192×208 pixel cells, saved as `spritesheet.webp` alongside a `pet.json` metadata file — the format produced by [OpenAI's Codex `hatch-pet` skill](https://github.com/openai/skills/tree/main/skills/.curated/hatch-pet).
 
 The easiest way to get one is to install Codex and hatch a pet:
 
@@ -38,58 +49,51 @@ codex
 > /hatch-pet
 ```
 
-Codex will generate the sprite and save it to `~/.codex/pets/<your-pet-name>/`. The default config in this plugin already looks for `~/.codex/pets/nola/spritesheet.webp` — if that's where yours landed, you're done. Otherwise point `~/.claude/pet/config.json → "spritesheet"` at the right path.
+Codex generates the sprite and saves it to `~/.codex/pets/<pet-name>/`. The pet name is whatever you (or Codex) choose at hatch time — there is no canonical default. On the next `/pet:pet start`, the launcher auto-detects any single spritesheet under `~/.codex/pets/*/` and wires it up. If you have multiple pets, it lists them and asks you to pick one in `~/.claude/pet/config.json`.
 
-If you'd rather draw your own: any 8-column × 9-row WebP or PNG with 192×208 cells will work. Update the row→state mapping in `config.json` to match your animations.
+If you'd rather draw your own: any 8-column × 9-row WebP or PNG with 192×208 cells will work. Update the row→state mapping in `config.json` to match your animations (run `/pet:pet previews` to dump one PNG per atlas row for reference).
 
 ## Usage
 
-Once installed and a sprite is wired up:
-
 ```text
-/claude-code-pet:pet start      # wake the pet
-/claude-code-pet:pet stop       # tuck the pet
-/claude-code-pet:pet status     # check what's going on
-/claude-code-pet:pet restart    # apply config.json changes
-/claude-code-pet:pet state <n>  # force a state (idle, thinking, working, alert, done, sleeping)
-/claude-code-pet:pet previews   # render one PNG per atlas row (for tuning)
-/claude-code-pet:pet tune       # open config.json
-/claude-code-pet:pet switch <id># point at ~/.codex/pets/<id>/
+/pet:pet start         # wake the pet
+/pet:pet stop          # tuck the pet
+/pet:pet status        # check what's going on
+/pet:pet restart       # apply config.json changes
+/pet:pet state <name>  # force a state (idle, thinking, working, alert, done, sleeping)
+/pet:pet previews      # render one PNG per atlas row (for tuning)
+/pet:pet tune          # open config.json
+/pet:pet switch <id>   # point at ~/.codex/pets/<id>/
 ```
 
 Or just ask in natural language — "wake my pet", "tuck the pet in", "what state is the pet in?".
 
-### Direct interaction with the pet
-
-- **Left-click** the pet → cycle through animated states.
-- **Right-click** the pet → cycle through frozen poses (sit, wave, sleep, look).
-- **Drag** → the pet runs in the direction you drag.
-- **Hover** → trot.
-- **Right-click a session bubble** → dismiss it (returns on the next state change).
-- The pet wakes from any manual override when a new alert fires or when the first session activates.
-
 ## How it works
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  Every Claude Code session (any cwd, any pid)            │
-│  └─ Lifecycle hook fires (UserPromptSubmit, PreToolUse,  │
-│      Stop, Notification, SessionEnd)                     │
-│         │                                                │
-│         ▼                                                │
-│  ${CLAUDE_PLUGIN_ROOT}/bin/pet-state.sh <state>          │
-│         │                                                │
-│         ▼                                                │
-│  pet-state.py: locked read-modify-write of               │
-│  ~/.claude/pet/state.json {sessions: {sid → {...}}}      │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  Every Claude Code session (any cwd, any pid)              │
+│  └─ Lifecycle hook fires (UserPromptSubmit, PreToolUse,    │
+│      Stop, Notification, SessionEnd)                       │
+│         │                                                  │
+│         ▼                                                  │
+│  ${CLAUDE_PLUGIN_ROOT}/bin/pet-state.sh <state>            │
+│         │                                                  │
+│         ▼                                                  │
+│  pet-state.py: locked read-modify-write of                 │
+│  ~/.claude/pet/state.json {sessions: {sid → {…}}}          │
+│  + extracts latest assistant block from JSONL transcript   │
+│  + resolves real session name from ~/.claude/sessions/     │
+└────────────────────────────────────────────────────────────┘
                           │
                           ▼ (mtime poll, 250 ms)
-┌──────────────────────────────────────────────────────────┐
-│  overlay.py: NSWindow at NSStatusWindowLevel             │
-│    canJoinAllSpaces | stationary | fullScreenAuxiliary   │
-│  Renders one sprite cell, one bubble per active session  │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  overlay.py: borderless transparent NSWindow at            │
+│    NSStatusWindowLevel, canJoinAllSpaces | stationary |    │
+│    fullScreenAuxiliary | ignoresCycle                      │
+│  Renders one sprite cell + one HUD bubble per session.     │
+│  Click / drag / hover via custom hit-testing.              │
+└────────────────────────────────────────────────────────────┘
 ```
 
 - **Plugin code** (read-only, ships with the plugin): `${CLAUDE_PLUGIN_ROOT}/{bin,src,hooks,skills}`
@@ -97,18 +101,16 @@ Or just ask in natural language — "wake my pet", "tuck the pet in", "what stat
   - `~/.claude/pet/venv/` — isolated pyobjc install
   - `~/.claude/pet/config.json` — your editable config
   - `~/.claude/pet/state.json` — aggregated state across all sessions
-  - `~/.claude/pet/position.json` — last window position
+  - `~/.claude/pet/position.json` — last window position (auto-saved on drag)
   - `~/.claude/pet/overlay.{pid,log}` — process metadata
-
-Session names are resolved authoritatively from `~/.claude/sessions/<pid>.json`. Bubble text is extracted from the latest assistant message in the session's JSONL transcript under `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` — falls back to the hook's `message` field on a miss.
 
 ## Configuration
 
-After the first `/pet start`, edit `~/.claude/pet/config.json`:
+After the first `/pet:pet start`, edit `~/.claude/pet/config.json`:
 
 ```json
 {
-  "spritesheet": "~/.codex/pets/nola/spritesheet.webp",
+  "spritesheet": "~/.codex/pets/<your-pet>/spritesheet.webp",
   "cellWidth": 192,
   "cellHeight": 208,
   "cols": 8,
@@ -130,9 +132,9 @@ After the first `/pet start`, edit `~/.claude/pet/config.json`:
 }
 ```
 
-Run `/pet previews` to see what's in each row of your spritesheet, then update the `states` mapping to taste. `/pet restart` to apply.
+Run `/pet:pet previews` to see what's in each row of your spritesheet, then update the `states` mapping to taste. `/pet:pet restart` to apply.
 
-## Hook → state mapping
+### Hook → state mapping
 
 | Claude Code hook    | State written  | Default animation (row) |
 |---------------------|----------------|-------------------------|
@@ -146,20 +148,20 @@ These map to standard [Claude Code hook events](https://docs.claude.com/en/docs/
 
 ## Troubleshooting
 
-**Pet doesn't appear after `/pet start`.** Check `~/.claude/pet/overlay.log`. The most common cause is a missing or wrong-path spritesheet — the start script validates this and prints an explicit message.
+**Pet doesn't appear after `/pet:pet start`.** Check `~/.claude/pet/overlay.log`. The most common cause is no spritesheet at the configured path — the start script validates this and prints an explicit message.
 
 **Pet appears off-screen.** macOS multi-monitor coordinates can be negative; if you dragged the pet to a monitor that's no longer connected, delete `~/.claude/pet/position.json` and restart.
 
-**Multiple pets, or "already running" with no visible pet.** Stale PID. Run `/pet stop` (which falls back to `pkill -f overlay.py run` if the PID file is stale) and then `/pet start`.
+**"Already running" with no visible pet.** Stale PID. `/pet:pet stop` then `/pet:pet start` (stop falls back to `pkill` if the PID file is stale).
 
-**Bubble shows my prompt text instead of Claude's reply.** The plugin extracts the latest assistant block from the JSONL transcript. If extraction fails it falls back to the hook's `message`. Check that `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` exists and is being written.
+**Bubble shows my prompt instead of Claude's reply.** The plugin extracts the latest assistant block from the JSONL transcript and falls back to the hook's `message` field on a miss. Check that `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` exists and is being written.
 
 **Session name doesn't match my terminal title.** The plugin reads `~/.claude/sessions/<pid>.json → name`. If that file isn't being written by your Claude Code version, the plugin falls back to the first user message.
 
 ## Uninstall
 
 ```bash
-/plugin uninstall claude-code-pet@claude-code-pet
+/plugin uninstall pet@claude-code-pet
 rm -rf ~/.claude/pet
 ```
 

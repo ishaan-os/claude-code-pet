@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "claude-code-pet",
+      "name": "pet",
       "source": "./",
       "description": "Floating animated pet overlay for Claude Code on macOS. Multi-session aware. Bring your own Codex-format spritesheet."
     }

@@ -42,32 +42,49 @@ if [[ ! -x "${PYTHON}" ]]; then
     "${PYTHON}" -m pip install --quiet pyobjc-core pyobjc-framework-Cocoa
 fi
 
-sprite=$("${PYTHON}" - <<PY
-import json, os, sys
-with open("${USER_CONFIG}") as f:
-    cfg = json.load(f)
-print(os.path.expanduser(cfg.get("spritesheet", "")))
-PY
-)
+sprite_raw=$("${PYTHON}" -c "import json,sys; c=json.load(open(sys.argv[1])); print(c.get('spritesheet','') or '')" "${USER_CONFIG}")
+sprite=$("${PYTHON}" -c "import os,sys; print(os.path.expanduser(sys.argv[1]) if sys.argv[1] else '')" "${sprite_raw}")
 
-if [[ ! -f "${sprite}" ]]; then
-    cat >&2 <<EOF
-claude-code-pet: spritesheet not found at:
-    ${sprite}
+# Auto-detect a Codex pet on first run when the config has no spritesheet.
+if [[ -z "${sprite_raw}" ]]; then
+    detected=()
+    if [[ -d "${HOME}/.codex/pets" ]]; then
+        while IFS= read -r -d '' f; do detected+=("$f"); done \
+            < <(find "${HOME}/.codex/pets" -maxdepth 2 -name spritesheet.webp -print0 2>/dev/null)
+    fi
 
-You need a Codex-format pet spritesheet (8×9 atlas, 192×208 cells). Two paths:
+    if [[ ${#detected[@]} -eq 1 ]]; then
+        sprite="${detected[0]}"
+        echo "claude-code-pet: auto-detected pet at ${sprite}"
+        "${PYTHON}" -c "import json,sys; p=sys.argv[1]; s=sys.argv[2]; c=json.load(open(p)); c['spritesheet']=s; json.dump(c, open(p,'w'), indent=2)" "${USER_CONFIG}" "${sprite}"
+    elif [[ ${#detected[@]} -gt 1 ]]; then
+        echo "claude-code-pet: multiple pets found in ~/.codex/pets/. Pick one and set \"spritesheet\" in:" >&2
+        echo "    ${USER_CONFIG}" >&2
+        echo "Available:" >&2
+        printf '    %s\n' "${detected[@]}" >&2
+        exit 1
+    else
+        cat >&2 <<EOF
+claude-code-pet: no Codex-format pet found.
 
-  1. Generate one with OpenAI's Codex CLI:
+You need a spritesheet (8×9 atlas, 192×208 cells). Two options:
+
+  1. Hatch one with OpenAI's Codex CLI:
        codex
        > /hatch-pet
-     Then point ${USER_CONFIG} → "spritesheet" at the resulting
-     ~/.codex/pets/<your-pet>/spritesheet.webp
+     The result lands at ~/.codex/pets/<your-pet>/spritesheet.webp.
+     Re-run /pet:pet start and it will auto-detect.
 
-  2. Supply your own WebP/PNG matching the atlas geometry and update the
-     config.
+  2. Supply your own WebP/PNG matching the atlas geometry. Set the
+     absolute path in ${USER_CONFIG} → "spritesheet".
 
 See the README for the full layout spec.
 EOF
+        exit 1
+    fi
+elif [[ ! -f "${sprite}" ]]; then
+    echo "claude-code-pet: spritesheet not found at ${sprite}" >&2
+    echo "Edit ${USER_CONFIG} → \"spritesheet\" to fix." >&2
     exit 1
 fi
 

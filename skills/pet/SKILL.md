@@ -1,9 +1,9 @@
 ---
 name: pet
-description: Manage the floating macOS pet overlay — start, stop, check status, regenerate row previews, set the displayed animation state, or tune the row-to-state mapping. Use when the user types /pet, asks to wake/tuck their pet, or wants to point the overlay at a different Codex pet folder.
+description: Manage the floating macOS pet overlay — start, stop, check status, regenerate row previews, set the displayed animation state, or tune the row-to-state mapping. Use when the user types /pet:pet, asks to wake/tuck their pet, or wants to point the overlay at a different Codex pet folder.
 ---
 
-# /pet — floating pet overlay for Claude Code
+# /pet:pet — floating pet overlay for Claude Code
 
 A native macOS overlay (PyObjC + AppKit) that renders an animation cell from a
 Codex-format pet spritesheet in a borderless transparent always-on-top window.
@@ -22,7 +22,7 @@ ${CLAUDE_PLUGIN_ROOT}/
 └── skills/pet/SKILL.md
 ```
 
-User state (writable, per-user — bootstrapped on first `/pet start`):
+User state (writable, per-user — bootstrapped on first `/pet:pet start`):
 ```
 ~/.claude/pet/
 ├── venv/              # isolated pyobjc install (auto-created)
@@ -50,16 +50,16 @@ The pet asset itself lives at `~/.codex/pets/<id>/spritesheet.webp` + `pet.json`
 
 ## Subcommands
 
-When the user types `/pet <verb>`, run the matching action.
+When the user types `/pet:pet <verb>`, run the matching action.
 
-### `/pet start`
+### `/pet:pet start`
 Run `${CLAUDE_PLUGIN_ROOT}/bin/start.sh`. Idempotent — self-bootstraps the venv
 and copies the default config on first run.
 
-### `/pet stop`
+### `/pet:pet stop`
 Run `${CLAUDE_PLUGIN_ROOT}/bin/stop.sh`.
 
-### `/pet status`
+### `/pet:pet status`
 Report whether `~/.claude/pet/overlay.pid` points at a live process and print
 the current state by running:
 ```
@@ -67,7 +67,7 @@ the current state by running:
 ```
 Tail last 5 lines of `~/.claude/pet/overlay.log` if there are errors.
 
-### `/pet state <name>`
+### `/pet:pet state <name>`
 Set the displayed animation directly (without triggering a hook event):
 ```
 ~/.claude/pet/venv/bin/python ${CLAUDE_PLUGIN_ROOT}/src/overlay.py set-state <name>
@@ -75,7 +75,7 @@ Set the displayed animation directly (without triggering a hook event):
 Valid names come from `config.json → states` (default: `idle`, `thinking`,
 `working`, `alert`, `done`, `sleeping`).
 
-### `/pet previews`
+### `/pet:pet previews`
 Run:
 ```
 ~/.claude/pet/venv/bin/python ${CLAUDE_PLUGIN_ROOT}/src/overlay.py previews
@@ -84,7 +84,7 @@ Writes one PNG per atlas row to `~/.claude/pet/previews/`. Read each one and
 report which row contains which animation so the user can update
 `config.json → states` accordingly.
 
-### `/pet tune`
+### `/pet:pet tune`
 Open `~/.claude/pet/config.json` for editing. Adjust:
 - `fps` — animation speed (default 6)
 - `scale` — render size (default 0.42 of native 192×208)
@@ -93,12 +93,12 @@ Open `~/.claude/pet/config.json` for editing. Adjust:
 - `themeAccent` — hex color for the badge while sessions are active
 - `doneAccent` — hex color for the badge when alert/done
 - `states` — `{name: {row, frames}}`. After saving, restart with
-  `/pet restart` so the new geometry takes effect.
+  `/pet:pet restart` so the new geometry takes effect.
 
-### `/pet restart`
+### `/pet:pet restart`
 Stop then start. Required after editing `config.json`.
 
-### `/pet switch <pet-id>`
+### `/pet:pet switch <pet-id>`
 Update `~/.claude/pet/config.json → spritesheet` to
 `~/.codex/pets/<pet-id>/spritesheet.webp`, then restart. Confirm the path
 exists before writing.
