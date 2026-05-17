@@ -1,6 +1,6 @@
 ---
-description: Manage the floating Codex-format pet overlay — start, stop, status, set state, render previews, tune, restart, or switch pets.
-argument-hint: [start|stop|status|restart|state <name>|previews|tune|switch <id>]
+description: Manage the floating Codex-format pet overlay — start, stop, status, set state, render previews, tune, restart, switch pets, or sync theme to the current terminal.
+argument-hint: [start|stop|status|restart|state <name>|previews|tune|theme|switch <id>]
 ---
 
 The user invoked `/pet $ARGUMENTS`. Dispatch to the matching action below. If
@@ -55,11 +55,37 @@ Open `~/.claude/pet/config.json` for the user to edit. Tunable fields:
 - `scale` — render size as a fraction of native 192×208 (default 0.42)
 - `anchor` — `bottom-right` | `bottom-left` | `top-right` | `top-left`
 - `margin` — pixels from the chosen corner
-- `themeAccent` — hex color for the badge while sessions are working
-- `doneAccent` — hex color for the badge when alert/done
+- `themeAccent` / `doneAccent` — either a hex color (`"#1F8FB5"`) or a
+  magic value: `"system"` / `"system-accent"` / `"system-green"` /
+  `"system-red"` / `"system-blue"` (auto-inherits the macOS appearance +
+  accent color and updates on appearance change)
+- `bubbleFontFamily` / `chipFontFamily` — optional PostScript font name
+  (e.g. `"MesloLGS NF"`, `"JetBrainsMonoNFM-Regular"`). When unset, uses
+  the macOS monospaced system font.
+- `bubbleFontSize` — bubble body font size in points (default 13)
 - `states` — `{name: {row, frames}}` row→animation mapping
 
 Remind the user to run `/pet restart` to apply changes.
+
+### `theme`
+Run `${CLAUDE_PLUGIN_ROOT}/bin/theme.sh`. Detects the active terminal via
+`$TERM_PROGRAM` and writes a matching `themeAccent`, `doneAccent`,
+`bubbleFontFamily`, `chipFontFamily`, and `bubbleFontSize` into
+`~/.claude/pet/config.json`.
+
+Supported:
+- **iTerm.app** — reads the active profile (`$ITERM_PROFILE`) from
+  `com.googlecode.iterm2.plist`. Pulls ANSI cyan / green for accents and
+  the profile's Normal Font for typography.
+- **Apple Terminal** — queries the selected tab via `osascript` for
+  foreground color and font name.
+- **Ghostty** — parses `~/.config/ghostty/config` (or the
+  `Application Support` variant) for `foreground`, `palette`,
+  `font-family`, `font-size`.
+
+For any other terminal, falls back to `themeAccent: "system"` +
+`doneAccent: "system-green"` (live macOS system accent). After running,
+remind the user to `/pet restart` to apply.
 
 ### `switch <pet-id>`
 Update `~/.claude/pet/config.json → spritesheet` to

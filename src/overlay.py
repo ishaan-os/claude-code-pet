@@ -136,8 +136,8 @@ DEFAULT_CONFIG = {
     "bubbleFontSize": 13.0,
     "badgeDiameter": 24.0,
     "badgeOverlap": 0.62,
-    "themeAccent": "#1F8FB5",
-    "doneAccent": "#34C759",
+    "themeAccent": "system",
+    "doneAccent": "system-green",
     "states": {
         "idle":     {"row": 0, "frames": 6},
         "thinking": {"row": 6, "frames": 6},
@@ -291,6 +291,29 @@ def _hex_rgb(s: str, fallback: tuple[float, float, float]) -> tuple[float, float
         return fallback
 
 
+# Magic config values that map to a live AppKit system color rather than a
+# fixed hex. These follow macOS appearance + accent automatically.
+_SYSTEM_COLOR_NAMES = {"system", "system-accent", "system-green", "system-red", "system-blue"}
+
+
+def _resolve_color(value, fallback_hex: str, fallback_rgb: tuple[float, float, float]):
+    """Returns an NSColor, resolving 'system*' magic values via AppKit."""
+    from AppKit import NSColor
+
+    if isinstance(value, str) and value.lower() in _SYSTEM_COLOR_NAMES:
+        v = value.lower()
+        if v in ("system", "system-accent"):
+            return NSColor.controlAccentColor()
+        if v == "system-green":
+            return NSColor.systemGreenColor()
+        if v == "system-red":
+            return NSColor.systemRedColor()
+        if v == "system-blue":
+            return NSColor.systemBlueColor()
+    rgb = _hex_rgb(value if isinstance(value, str) else fallback_hex, fallback_rgb)
+    return NSColor.colorWithSRGBRed_green_blue_alpha_(*rgb, 1.0)
+
+
 def run_overlay() -> None:
     import objc
     from AppKit import (
@@ -334,10 +357,12 @@ def run_overlay() -> None:
     badge_overlap = float(cfg.get("badgeOverlap", 0.62))
     badge_protrude = badge_d * (1.0 - badge_overlap)
 
-    theme_rgb = _hex_rgb(cfg.get("themeAccent", "#1F8FB5"), (0.12, 0.56, 0.71))
-    done_rgb = _hex_rgb(cfg.get("doneAccent", "#34C759"), (0.20, 0.78, 0.35))
-    theme_color = NSColor.colorWithSRGBRed_green_blue_alpha_(*theme_rgb, 1.0)
-    done_color = NSColor.colorWithSRGBRed_green_blue_alpha_(*done_rgb, 1.0)
+    theme_color = _resolve_color(
+        cfg.get("themeAccent", "system"), "#1F8FB5", (0.12, 0.56, 0.71)
+    )
+    done_color = _resolve_color(
+        cfg.get("doneAccent", "system-green"), "#34C759", (0.20, 0.78, 0.35)
+    )
 
     bubble_outer_pad = 10.0
     chip_pad_x = 7.0
@@ -357,8 +382,22 @@ def run_overlay() -> None:
             pass
         return font
 
-    body_font = NSFont.monospacedSystemFontOfSize_weight_(body_font_size, NSFontWeightRegular)
-    chip_font = NSFont.monospacedSystemFontOfSize_weight_(11.0, NSFontWeightRegular)
+    def _named_or(default_font, family_key, size, weight):
+        family = cfg.get(family_key)
+        if family:
+            cand = NSFont.fontWithName_size_(str(family), size)
+            if cand is not None:
+                return cand
+        return default_font
+
+    body_font = _named_or(
+        NSFont.monospacedSystemFontOfSize_weight_(body_font_size, NSFontWeightRegular),
+        "bubbleFontFamily", body_font_size, NSFontWeightRegular,
+    )
+    chip_font = _named_or(
+        NSFont.monospacedSystemFontOfSize_weight_(11.0, NSFontWeightRegular),
+        "chipFontFamily", 11.0, NSFontWeightRegular,
+    )
     badge_font = with_rounded_design(
         NSFont.systemFontOfSize_weight_(11.0, NSFontWeightBold), 11.0,
     )

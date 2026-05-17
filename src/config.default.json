@@ -8,8 +8,8 @@
   "scale": 0.42,
   "anchor": "bottom-right",
   "margin": 24,
-  "themeAccent": "#1F8FB5",
-  "doneAccent": "#34C759",
+  "themeAccent": "system",
+  "doneAccent": "system-green",
   "states": {
     "idle":     {"row": 0, "frames": 6},
     "thinking": {"row": 6, "frames": 6},

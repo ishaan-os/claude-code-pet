@@ -9,7 +9,7 @@ I love Claude Code's new agent activity view — but I missed my Codex pet sitti
 ## What makes it different
 
 - **Multi-session aware.** One speech bubble per active Claude Code session, each chip-stamped with the session's *real* name (resolved authoritatively from `~/.claude/sessions/<pid>.json`) and showing the latest assistant narration extracted from the JSONL transcript — not the raw tool command, not your prompt. Works across any number of concurrent sessions on any cwd.
-- **Theme + typography match.** SF Mono body / SF Pro Rounded chip, system HUD blur, teal theme-accent badge while sessions are working, green only when alert/done. Feels like a native macOS widget, not an overlay bolted on.
+- **Theme + typography match.** Defaults inherit your live macOS appearance + accent color (`NSColor.controlAccentColor`) — change accent in System Settings, the badge follows. Bubble blur is `NSVisualEffectView` HUD material so light/dark adapts automatically. Run `/pet theme` to also pull the *active terminal's* profile colors and font (iTerm.app, Apple Terminal, Ghostty supported) — so the pet visually fits whatever shell you're in.
 - **Dismissible bubbles.** Right-click any session bubble to dismiss it; it returns on the next state change for that session.
 - **Click to control the pet.** Left-click cycles animated states (sleeping → idle → thinking → done → working → alert → resume). Right-click cycles frozen poses (sit, wave, sleep, look). The pet auto-wakes from any manual override when a new alert fires or when your first session activates.
 - **Drag-direction-aware run.** Grab and drag the pet — she runs left or right matching the drag direction (rows 1/2). Hover the pet → trot (row 7).
@@ -61,6 +61,7 @@ If you'd rather draw your own: any 8-column × 9-row WebP or PNG with 192×208 c
 /pet state <name>  # force a state (idle, thinking, working, alert, done, sleeping)
 /pet previews      # render one PNG per atlas row (for tuning)
 /pet tune          # open config.json
+/pet theme         # sync colors + font to the current terminal's profile
 /pet switch <id>   # point at ~/.codex/pets/<id>/
 ```
 
@@ -117,8 +118,11 @@ After the first `/pet start`, edit `~/.claude/pet/config.json`:
   "scale": 0.42,
   "anchor": "bottom-right",
   "margin": 24,
-  "themeAccent": "#1F8FB5",
-  "doneAccent":  "#34C759",
+  "themeAccent": "system",
+  "doneAccent":  "system-green",
+  "bubbleFontFamily": null,
+  "chipFontFamily":   null,
+  "bubbleFontSize":   13.0,
   "states": {
     "idle":     {"row": 0, "frames": 6},
     "thinking": {"row": 6, "frames": 6},
@@ -131,6 +135,20 @@ After the first `/pet start`, edit `~/.claude/pet/config.json`:
 ```
 
 Run `/pet previews` to see what's in each row of your spritesheet, then update the `states` mapping to taste. `/pet restart` to apply.
+
+### Theme & typography
+
+- `themeAccent` / `doneAccent` accept either a hex string (`"#1F8FB5"`) or a magic value that resolves to a live macOS system color:
+  - `"system"` / `"system-accent"` → `NSColor.controlAccentColor` (whatever you picked in System Settings → Appearance)
+  - `"system-green"` → `NSColor.systemGreenColor`
+  - `"system-red"` → `NSColor.systemRedColor`
+  - `"system-blue"` → `NSColor.systemBlueColor`
+- `bubbleFontFamily` / `chipFontFamily` accept a PostScript font name (e.g. `"MesloLGS NF"`, `"JetBrainsMonoNFM-Regular"`). When `null` or absent, the macOS monospaced system font is used.
+- Run `/pet theme` from inside your terminal to *auto-detect* and write theme + font values matching the active terminal profile:
+  - **iTerm.app**: reads the active profile's ANSI cyan/green and Normal Font.
+  - **Apple Terminal**: queries the selected tab via `osascript`.
+  - **Ghostty**: parses `~/.config/ghostty/config` (or the `Application Support` variant).
+  - **Anything else**: falls back to `themeAccent: "system"` + `doneAccent: "system-green"`.
 
 ### Hook → state mapping
 
