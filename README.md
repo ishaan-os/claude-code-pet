@@ -1,6 +1,6 @@
 # claude-code-pet
 
-> A floating, animated, multi-session-aware pet overlay for [Claude Code](https://docs.claude.com/en/docs/claude-code) on macOS. Bring your own Codex-format spritesheet. Invoked as `/pet:pet`.
+> A floating, animated, multi-session-aware pet overlay for [Claude Code](https://docs.claude.com/en/docs/claude-code) on macOS. Bring your own Codex-format spritesheet. Invoked as `/pet`.
 
 ## Why
 
@@ -30,12 +30,10 @@ No Homebrew packages, no Xcode, no Accessibility/Screen-Recording prompts. The p
 # In any Claude Code session:
 /plugin marketplace add ishaan-os/claude-code-pet
 /plugin install pet@claude-code-pet
-/pet:pet start
+/pet start
 ```
 
-That's it. The plugin registers its own lifecycle hooks — you do **not** need to edit `~/.claude/settings.json`. First `/pet:pet start` bootstraps the venv, copies a default config, auto-detects your pet from `~/.codex/pets/`, and launches.
-
-> **Why `/pet:pet`?** Claude Code requires plugin commands to be namespaced as `/<plugin>:<skill>` to avoid collisions. The plugin name is `pet` (short prefix) and the skill is also `pet`. The repo is published as `claude-code-pet` for discoverability.
+That's it. The plugin registers its own lifecycle hooks — you do **not** need to edit `~/.claude/settings.json`. First `/pet start` bootstraps the venv, copies a default config, auto-detects your pet from `~/.codex/pets/`, and launches.
 
 ## Getting a pet
 
@@ -49,21 +47,21 @@ codex
 > /hatch-pet
 ```
 
-Codex generates the sprite and saves it to `~/.codex/pets/<pet-name>/`. The pet name is whatever you (or Codex) choose at hatch time — there is no canonical default. On the next `/pet:pet start`, the launcher auto-detects any single spritesheet under `~/.codex/pets/*/` and wires it up. If you have multiple pets, it lists them and asks you to pick one in `~/.claude/pet/config.json`.
+Codex generates the sprite and saves it to `~/.codex/pets/<pet-name>/`. The pet name is whatever you (or Codex) choose at hatch time — there is no canonical default. On the next `/pet start`, the launcher auto-detects any single spritesheet under `~/.codex/pets/*/` and wires it up. If you have multiple pets, it lists them and asks you to pick one in `~/.claude/pet/config.json`.
 
-If you'd rather draw your own: any 8-column × 9-row WebP or PNG with 192×208 cells will work. Update the row→state mapping in `config.json` to match your animations (run `/pet:pet previews` to dump one PNG per atlas row for reference).
+If you'd rather draw your own: any 8-column × 9-row WebP or PNG with 192×208 cells will work. Update the row→state mapping in `config.json` to match your animations (run `/pet previews` to dump one PNG per atlas row for reference).
 
 ## Usage
 
 ```text
-/pet:pet start         # wake the pet
-/pet:pet stop          # tuck the pet
-/pet:pet status        # check what's going on
-/pet:pet restart       # apply config.json changes
-/pet:pet state <name>  # force a state (idle, thinking, working, alert, done, sleeping)
-/pet:pet previews      # render one PNG per atlas row (for tuning)
-/pet:pet tune          # open config.json
-/pet:pet switch <id>   # point at ~/.codex/pets/<id>/
+/pet start         # wake the pet
+/pet stop          # tuck the pet
+/pet status        # check what's going on
+/pet restart       # apply config.json changes
+/pet state <name>  # force a state (idle, thinking, working, alert, done, sleeping)
+/pet previews      # render one PNG per atlas row (for tuning)
+/pet tune          # open config.json
+/pet switch <id>   # point at ~/.codex/pets/<id>/
 ```
 
 Or just ask in natural language — "wake my pet", "tuck the pet in", "what state is the pet in?".
@@ -96,7 +94,7 @@ Or just ask in natural language — "wake my pet", "tuck the pet in", "what stat
 └────────────────────────────────────────────────────────────┘
 ```
 
-- **Plugin code** (read-only, ships with the plugin): `${CLAUDE_PLUGIN_ROOT}/{bin,src,hooks,skills}`
+- **Plugin code** (read-only, ships with the plugin): `${CLAUDE_PLUGIN_ROOT}/{bin,src,hooks,commands}`
 - **User state** (writable, per-user, auto-bootstrapped on first start):
   - `~/.claude/pet/venv/` — isolated pyobjc install
   - `~/.claude/pet/config.json` — your editable config
@@ -106,7 +104,7 @@ Or just ask in natural language — "wake my pet", "tuck the pet in", "what stat
 
 ## Configuration
 
-After the first `/pet:pet start`, edit `~/.claude/pet/config.json`:
+After the first `/pet start`, edit `~/.claude/pet/config.json`:
 
 ```json
 {
@@ -132,7 +130,7 @@ After the first `/pet:pet start`, edit `~/.claude/pet/config.json`:
 }
 ```
 
-Run `/pet:pet previews` to see what's in each row of your spritesheet, then update the `states` mapping to taste. `/pet:pet restart` to apply.
+Run `/pet previews` to see what's in each row of your spritesheet, then update the `states` mapping to taste. `/pet restart` to apply.
 
 ### Hook → state mapping
 
@@ -148,11 +146,11 @@ These map to standard [Claude Code hook events](https://docs.claude.com/en/docs/
 
 ## Troubleshooting
 
-**Pet doesn't appear after `/pet:pet start`.** Check `~/.claude/pet/overlay.log`. The most common cause is no spritesheet at the configured path — the start script validates this and prints an explicit message.
+**Pet doesn't appear after `/pet start`.** Check `~/.claude/pet/overlay.log`. The most common cause is no spritesheet at the configured path — the start script validates this and prints an explicit message.
 
 **Pet appears off-screen.** macOS multi-monitor coordinates can be negative; if you dragged the pet to a monitor that's no longer connected, delete `~/.claude/pet/position.json` and restart.
 
-**"Already running" with no visible pet.** Stale PID. `/pet:pet stop` then `/pet:pet start` (stop falls back to `pkill` if the PID file is stale).
+**"Already running" with no visible pet.** Stale PID. `/pet stop` then `/pet start` (stop falls back to `pkill` if the PID file is stale).
 
 **Bubble shows my prompt instead of Claude's reply.** The plugin extracts the latest assistant block from the JSONL transcript and falls back to the hook's `message` field on a miss. Check that `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` exists and is being written.
 

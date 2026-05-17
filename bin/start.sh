@@ -73,7 +73,7 @@ You need a spritesheet (8×9 atlas, 192×208 cells). Two options:
        codex
        > /hatch-pet
      The result lands at ~/.codex/pets/<your-pet>/spritesheet.webp.
-     Re-run /pet:pet start and it will auto-detect.
+     Re-run /pet start and it will auto-detect.
 
   2. Supply your own WebP/PNG matching the atlas geometry. Set the
      absolute path in ${USER_CONFIG} → "spritesheet".
